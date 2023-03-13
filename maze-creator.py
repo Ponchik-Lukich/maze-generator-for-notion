@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 NOTION_KEY = os.environ.get("NOTION_KEY")
-print(NOTION_KEY)
 headers = {'Authorization': f"Bearer {NOTION_KEY}",
            'Content-Type': 'application/json',
            'Notion-Version': '2022-06-28'}
@@ -61,13 +60,13 @@ def create_pages(matrix, x, y, parent_id, title):
     # page_title = f"Page {x},{y}"
     icon = ""
     if title == "Up":
-        icon = "\u2191"
+        icon = "🔼"
     elif title == "Down":
-        icon = "\u2193"
+        icon = "🔽"
     elif title == "Left":
-        icon = "\u2190"
+        icon = "◀️"
     elif title == "Right":
-        icon = "\u2192"
+        icon = "▶️"
 
     page_text = title
     new_page_id = create_page(icon, title, parent_id)
