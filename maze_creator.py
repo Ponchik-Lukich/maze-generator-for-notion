@@ -1,10 +1,14 @@
 import requests
 import os
 from dotenv import load_dotenv
+from maze_parser import parse_maze
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
 NOTION_KEY = os.environ.get("NOTION_KEY")
+print(NOTION_KEY)
 headers = {'Authorization': f"Bearer {NOTION_KEY}",
            'Content-Type': 'application/json',
            'Notion-Version': '2022-06-28'}
@@ -16,9 +20,9 @@ search_response = requests.post(
 
 search_results = search_response.json()["results"]
 page_id = search_results[0]["id"]
+print(page_id)
 
 
-# Define function to create a page with a given title and text
 def create_page(icon, title, parent_id):
     create_page_body = {
         "parent": {"page_id": parent_id},
@@ -55,8 +59,7 @@ def create_page(icon, title, parent_id):
     return create_response.json()["id"]
 
 
-# Define function to recursively create pages based on the matrix
-def create_pages(matrix, x, y, parent_id, title):
+def create_pages(matrix, y, x, parent_id, title):
     # page_title = f"Page {x},{y}"
     icon = ""
     if title == "Up":
@@ -68,47 +71,30 @@ def create_pages(matrix, x, y, parent_id, title):
     elif title == "Right":
         icon = "▶️"
 
-    page_text = title
     new_page_id = create_page(icon, title, parent_id)
-    mark_matrix[x][y] = 1
-    # print(x, y, new_page_id)
-    # for row in mark_matrix:
-    #     print(row)
-    # Add links to neighboring pages
-    if x > 0 and matrix[x - 1][y] == 0 and mark_matrix[x - 1][y] == 0:
-        print("Up", x, y)
-        create_pages(matrix, x - 1, y, new_page_id, "Up")
-        # add_link(new_page_id, left_id, "Left")
-    if x < len(matrix) - 1 and matrix[x + 1][y] == 0 and mark_matrix[x + 1][y] == 0:
-        print("Down", x, y)
-        create_pages(matrix, x + 1, y, new_page_id, "Down")
-        # add_link(new_page_id, right_id, "Right")
-    if y > 0 and matrix[x][y - 1] == 0 and mark_matrix[x][y - 1] == 0:
-        print("Left", x, y)
-        create_pages(matrix, x, y - 1, new_page_id, "Left")
-        # add_link(new_page_id, up_id, "Up")
-    if y < len(matrix[0]) - 1 and matrix[x][y + 1] == 0 and mark_matrix[x][y + 1] == 0:
-        print("Right", x, y)
-        create_pages(matrix, x, y + 1, new_page_id, "Right")
-        # add_link(new_page_id, down_id, "Down")
+    print("Created:", new_page_id)
+    mark_matrix[y][x] = 1
+    if y > 0 and matrix[y - 1][x] == 0 and mark_matrix[y - 1][x] == 0:
+        print("Up", y, x)
+        create_pages(matrix, y - 1, x, new_page_id, "Up")
+    if y < len(matrix) - 1 and matrix[y + 1][x] == 0 and mark_matrix[y + 1][x] == 0:
+        print("Down", y, x)
+        create_pages(matrix, y + 1, x, new_page_id, "Down")
+    if x > 0 and matrix[y][x - 1] == 0 and mark_matrix[y][x - 1] == 0:
+        print("Left", y, x)
+        create_pages(matrix, y, x - 1, new_page_id, "Left")
+    if x < len(matrix[0]) - 1 and matrix[y][x + 1] == 0 and mark_matrix[y][x + 1] == 0:
+        print("Right", y, x)
+        create_pages(matrix, y, x + 1, new_page_id, "Right")
 
-    # return new_page_id
 
-matrix = [[1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1],
-          [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
-          [1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-          [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-          [1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1],
-          [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
-          [1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1],
-          [1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1],
-          [1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1],
-          [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-          [1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1]
-          ]
+matrix = parse_maze("maze2.jpg")
 
 mark_matrix = [[0 for i in range(len(matrix[0]))] for j in range(len(matrix))]
 
-create_pages(matrix, 10, 5, page_id, "Up")
-
-
+# find index of zero in last row
+for i in range(len(matrix[0])):
+    if matrix[len(matrix) - 1][i] == 0:
+        last_row_zero_index = i
+        break
+create_pages(matrix, len(matrix) - 1, last_row_zero_index, page_id, "Up")
