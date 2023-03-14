@@ -24,10 +24,13 @@ def parse_maze(image):
             else:
                 maze_matrix[y, x] = 0
 
+    flag = False
     # Calculate the new size of the maze
     size = 2
     while size * 14 + (size - 1) * 2 + 4 != width:
         size += 1
+    if size % 2 == 0:
+        flag = True
     size = size + size - 1
 
     # Create a new maze-matrix of size*size
@@ -51,17 +54,14 @@ def parse_maze(image):
             else:
                 new_maze_matrix[y, x] = cut_maze_matrix[(y // 2 + 1) * 16 - 1, (x // 2 + 1) * 16 - 1]
 
-    print("width: ", width)
-    print("height: ", height)
-    print("size: ", size)
-
     # add one row above and one row below and one column left and one column right with 1
     new_maze_matrix = np.insert(new_maze_matrix, 0, 1, axis=0)
     new_maze_matrix = np.insert(new_maze_matrix, size + 1, 1, axis=0)
     new_maze_matrix = np.insert(new_maze_matrix, 0, 1, axis=1)
     new_maze_matrix = np.insert(new_maze_matrix, size + 1, 1, axis=1)
 
-    if len(new_maze_matrix) % 2 == 0:
+    # in a matrix with an even number of cells, the inputs are shifted:
+    if flag:
         new_maze_matrix[0, len(new_maze_matrix) // 2 - 1] = 0
         new_maze_matrix[len(new_maze_matrix) - 1, len(new_maze_matrix) // 2 + 1] = 0
     else:
@@ -72,16 +72,3 @@ def parse_maze(image):
     for row in new_maze_matrix:
         print(row)
     return new_maze_matrix
-
-# # Create a new image with the same size as the matrix
-# maze_image = Image.new("RGB", (width, height), color="white")
-#
-# # Iterate over the cells in the matrix and set the corresponding pixels in the image
-# for y in range(height):
-#     for x in range(width):
-#         if maze_matrix[y, x] == 1:
-#             maze_image.putpixel((x, y), (0, 0, 0))
-#         else:
-#             maze_image.putpixel((x, y), (255, 255, 255))
-#
-# maze_image.save("result.png")

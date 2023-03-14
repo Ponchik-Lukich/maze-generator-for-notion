@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 NOTION_KEY = os.environ.get("NOTION_KEY")
-print(NOTION_KEY)
 headers = {'Authorization': f"Bearer {NOTION_KEY}",
            'Content-Type': 'application/json',
            'Notion-Version': '2022-06-28'}
@@ -20,7 +19,6 @@ search_response = requests.post(
 
 search_results = search_response.json()["results"]
 page_id = search_results[0]["id"]
-print(page_id)
 
 
 def create_page(icon, title, parent_id):
@@ -72,29 +70,45 @@ def create_pages(matrix, y, x, parent_id, title):
         icon = "▶️"
 
     new_page_id = create_page(icon, title, parent_id)
+    if y == 1 and x == first_row_zero_index:
+        finish_page_id = create_page("🏁", "Finish", new_page_id)
+        print("Finish created:", finish_page_id)
+
     print("Created:", new_page_id)
     mark_matrix[y][x] = 1
-    if y > 0 and matrix[y - 1][x] == 0 and mark_matrix[y - 1][x] == 0:
-        print("Up", y, x)
-        create_pages(matrix, y - 1, x, new_page_id, "Up")
-    if y < len(matrix) - 1 and matrix[y + 1][x] == 0 and mark_matrix[y + 1][x] == 0:
-        print("Down", y, x)
-        create_pages(matrix, y + 1, x, new_page_id, "Down")
-    if x > 0 and matrix[y][x - 1] == 0 and mark_matrix[y][x - 1] == 0:
-        print("Left", y, x)
-        create_pages(matrix, y, x - 1, new_page_id, "Left")
-    if x < len(matrix[0]) - 1 and matrix[y][x + 1] == 0 and mark_matrix[y][x + 1] == 0:
-        print("Right", y, x)
-        create_pages(matrix, y, x + 1, new_page_id, "Right")
+    if y > 0 and matrix[y - 1][x] == 0:
+        if mark_matrix[y - 2][x] == 0:
+            print("Up", y, x)
+            create_pages(matrix, y - 2, x, new_page_id, "Up")
+    if y < len(matrix) - 1 and matrix[y + 1][x] == 0:
+        if mark_matrix[y + 2][x] == 0:
+            print("Down", y, x)
+            create_pages(matrix, y + 2, x, new_page_id, "Down")
+    if x > 0 and matrix[y][x - 1] == 0:
+        if mark_matrix[y][x - 2] == 0:
+            print("Left", y, x)
+            create_pages(matrix, y, x - 2, new_page_id, "Left")
+    if x < len(matrix[0]) - 1 and matrix[y][x + 1] == 0:
+        if mark_matrix[y][x + 2] == 0:
+            print("Right", y, x)
+            create_pages(matrix, y, x + 2, new_page_id, "Right")
 
 
-matrix = parse_maze("maze2.jpg")
+matrix = parse_maze("images/5x5Maze.png")
 
 mark_matrix = [[0 for i in range(len(matrix[0]))] for j in range(len(matrix))]
-
+last_row_zero_index = 0
+first_row_zero_index = 0
 # find index of zero in last row
 for i in range(len(matrix[0])):
+    if last_row_zero_index != 0 and first_row_zero_index !=0:
+        break
     if matrix[len(matrix) - 1][i] == 0:
         last_row_zero_index = i
-        break
-create_pages(matrix, len(matrix) - 1, last_row_zero_index, page_id, "Up")
+    if matrix[0][i] == 0:
+        first_row_zero_index = i
+matrix[0][first_row_zero_index] = 1
+matrix[len(matrix) - 1][last_row_zero_index] = 1
+
+start_page_id = create_page("🚷", "Start page", page_id)
+create_pages(matrix, len(matrix) - 2, last_row_zero_index, start_page_id, "Up")
