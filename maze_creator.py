@@ -1,6 +1,7 @@
+import time
+
 import requests
 import os
-from dotenv import load_dotenv
 from maze_parser import parse_maze
 
 from dotenv import load_dotenv
@@ -19,11 +20,41 @@ search_response = requests.post(
 
 search_results = search_response.json()["results"]
 page_id = search_results[0]["id"]
+default_children = [
+    {
+        "object": "block",
+        "type": "paragraph",
+        "paragraph": {
+            "rich_text": [{
+                "type": "text",
+                "text": {
+                    "content": "Dead end!"
+                }
+            }]
+        }
+    }
+]
 
 
-def create_page(icon, title, start_page_id=page_id):
+def make_children(page_children):
+    json_children = []
+    if len(page_children) == 0:
+        json_children = default_children
+    else:
+        for child in page_children:
+            json_children.append({
+                "object": "block",
+                "type": "link_to_page",
+                "link_to_page": {
+                    "page_id": child
+                }
+            })
+    return json_children
+
+
+def create_page(icon, title, children):
     create_page_body = {
-        "parent": {"page_id": start_page_id},
+        "parent": {"page_id": page_id},
         "properties": {
             "title": {
                 "title": [{
@@ -35,118 +66,70 @@ def create_page(icon, title, start_page_id=page_id):
             "type": "emoji",
             "emoji": icon
         },
-        "children": [
-            {
-                "object": "block",
-                "type": "paragraph",
-                "paragraph": {
-                    "rich_text": [{
-                        "type": "text",
-                        "text": {
-                            "content": ""
-                        }
-                    }]
-                }
-            }
-        ]
+        "children": children,
     }
-    create_response = requests.post(
-        "https://api.notion.com/v1/pages",
-        json=create_page_body, headers=headers)
-    # print(create_response.json())
+    while True:
+        try:
+            create_response = requests.post(
+                "https://api.notion.com/v1/pages",
+                json=create_page_body, headers=headers)
+            page_ids.append(create_response.json()["id"])
+            # print(create_response.json())
+            break
+        except Exception as e:
+            print(e)
+            print(create_response.text)
+
+    # time.sleep(1)
     return create_response.json()["id"]
 
 
-def create_pages(matrix, y, x, title):
-    # page_title = f"Page {x},{y}"
-    icon = ""
-    if title == "Up":
-        icon = "🔼"
-    elif title == "Down":
-        icon = "🔽"
-    elif title == "Left":
-        icon = "◀️"
-    elif title == "Right":
-        icon = "▶️"
-    elif title == "Start":
-        icon = "🚷"
-
-    new_page_id = create_page(icon, title, start_page_id)
-    if y == 1 and x == first_row_zero_index:
-        finish_page_id = create_page("🏁", "Finish", new_page_id)
-        print("Finish created:", finish_page_id)
-
-    print("Created:", new_page_id, title)
+def create_pages(y, x, title):
     mark_matrix[y][x] = 1
+    page_children = []
     if y > 0 and matrix[y - 1][x] == 0:
         if mark_matrix[y - 2][x] == 0:
-            print("Up", y, x)
-            up_id = create_pages(matrix, y - 2, x, "Up")
-            print("adding link up", new_page_id, up_id)
-            add_link(new_page_id, up_id, "Up", title)
-            # create_pages(matrix, y - 2, x, new_page_id, "Up")
+            up_id = create_pages(y - 2, x, "Up")
+            page_children.append(up_id)
     if y < len(matrix) - 1 and matrix[y + 1][x] == 0:
         if mark_matrix[y + 2][x] == 0:
-            print("Down", y, x)
-            down_id = create_pages(matrix, y + 2, x, "Down")
-            print("adding link down", new_page_id, down_id)
-            add_link(new_page_id, down_id, "Down", title)
+            down_id = create_pages(y + 2, x, "Down")
+            page_children.append(down_id)
     if x > 0 and matrix[y][x - 1] == 0:
         if mark_matrix[y][x - 2] == 0:
-            print("Left", y, x)
-            left_id = create_pages(matrix, y, x - 2, "Left")
-            print("adding link left", new_page_id, left_id)
-            add_link(new_page_id, left_id, "Left", title)
+            left_id = create_pages(y, x - 2, "Left")
+            page_children.append(left_id)
     if x < len(matrix[0]) - 1 and matrix[y][x + 1] == 0:
         if mark_matrix[y][x + 2] == 0:
-            print("Right", y, x)
-            right_id = create_pages(matrix, y, x + 2, "Right")
-            print("adding link right", new_page_id, right_id)
-            add_link(new_page_id, right_id, "Right", title)
+            right_id = create_pages(y, x + 2, "Right")
+            page_children.append(right_id)
+    if y == 1 and x == first_row_zero_index:
+        finish_page_id = create_page("🏁", "Finish", default_children)
+        page_children.append(finish_page_id)
+        print("Finish created:", finish_page_id)
+    icon = ""
+    if len(page_children) == 0:
+        icon = "💀"
+        title = "Dead end"
+    else:
+        if title == "Up":
+            icon = "🔼"
+        elif title == "Down":
+            icon = "🔽"
+        elif title == "Left":
+            icon = "◀️"
+        elif title == "Right":
+            icon = "▶️"
+        elif title == "Start":
+            icon = "🚷"
+    # print("Creating:", icon, title, make_children(page_children))
+    new_page_id = create_page(icon, title, make_children(page_children))
+    print("Created:", new_page_id, title)
     return new_page_id
 
 
-def add_link(page_id, linked_page_id, direction, title):
-    page_id = page_id.replace("-", "")
-    linked_page_id = linked_page_id.replace("-", "")
-    direction = direction.replace("-", "")
-
-    update_block_body = {
-        "operations": [
-            {
-                "id": page_id,
-                "path": "properties.Links",
-                "command": "update",
-                "value": [
-                    {
-                        "type": "embed",
-                        "embed": {
-                            "url": f"https://www.notion.so/{linked_page_id}",
-                            "caption": {
-                                "text": [
-                                    {
-                                        "type": "text",
-                                        "text": {
-                                            "content": ""
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    }
-                ]
-            }
-        ]
-    }
-    update_response = requests.patch(
-        "https://api.notion.com/v1/blocks",
-        json=update_block_body, headers=headers)
-    print("------ ", f"https://www.notion.so/{linked_page_id}")
-    print("------ ", f"https://www.notion.so/{page_id}")
-    print(update_response.json())
-
-
 matrix = parse_maze("images/5x5Maze.png")
+page_ids = []
 
 mark_matrix = [[0 for i in range(len(matrix[0]))] for j in range(len(matrix))]
 last_row_zero_index = 0
@@ -162,7 +145,8 @@ for i in range(len(matrix[0])):
 matrix[0][first_row_zero_index] = 1
 matrix[len(matrix) - 1][last_row_zero_index] = 1
 
-start_page_id = create_page("🚷", "Start page", page_id)
+# start_page_id = create_page("🚷", "Start page", default_children)
 print("New-Maze:", page_id)
-print("Start page:", start_page_id)
-create_pages(matrix, len(matrix) - 2, last_row_zero_index, "Start")
+start_page_id = create_pages(len(matrix) - 2, last_row_zero_index, "Start")
+print(page_ids)
+
