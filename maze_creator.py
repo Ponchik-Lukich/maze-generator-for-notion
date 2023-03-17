@@ -1,9 +1,6 @@
-import time
-
 import requests
 import os
 from maze_parser import parse_maze
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -145,7 +142,6 @@ for i in range(len(matrix[0])):
 matrix[0][first_row_zero_index] = 1
 matrix[len(matrix) - 1][last_row_zero_index] = 1
 
-# start_page_id = create_page("🚷", "Start page", default_children)
 print("New-Maze:", page_id)
 start_page_id = create_pages(len(matrix) - 2, last_row_zero_index, "Start")
 print(page_ids)
